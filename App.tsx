@@ -1,21 +1,54 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { View, ActivityIndicator } from 'react-native';
 
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import AuthScreen from './src/screens/AuthScreen';
+import OnboardingScreen from './src/screens/OnboardingScreen';
 import HomeScreen from './src/screens/HomeScreen';
+import ProfileScreen from './src/screens/ProfileScreen';
+import SettingsScreen from './src/screens/SettingsScreen';
+import EditProfileScreen from './src/screens/EditProfileScreen';
+import { ProfileService } from './src/services/profileService';
 
 const Stack = createNativeStackNavigator();
 
 const AppNavigator = () => {
   const { user, loading } = useAuth();
+  const [hasProfile, setHasProfile] = useState<boolean | null>(null);
+  const [checkingProfile, setCheckingProfile] = useState(true);
 
-  if (loading) {
+  useEffect(() => {
+    if (user) {
+      checkUserProfile();
+    } else {
+      setHasProfile(null);
+      setCheckingProfile(false);
+    }
+  }, [user]);
+
+  const checkUserProfile = async () => {
+    if (!user) {
+      setCheckingProfile(false);
+      return;
+    }
+    
+    try {
+      const profile = await ProfileService.getProfile(user.id);
+      setHasProfile(profile !== null);
+    } catch (error) {
+      console.error('Error checking profile:', error);
+      setHasProfile(false);
+    } finally {
+      setCheckingProfile(false);
+    }
+  };
+
+  if (loading || checkingProfile) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8f9fa' }}>
-        <ActivityIndicator size="large" color="#2196F3" />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff' }}>
+        <ActivityIndicator size="large" color="#8B5CF6" />
       </View>
     );
   }
@@ -28,10 +61,31 @@ const AppNavigator = () => {
         }}
       >
         {user ? (
-          <Stack.Screen 
-            name="Home" 
-            component={HomeScreen} 
-          />
+          hasProfile ? (
+            <>
+              <Stack.Screen 
+                name="Home" 
+                component={HomeScreen} 
+              />
+              <Stack.Screen 
+                name="Profile" 
+                component={ProfileScreen} 
+              />
+              <Stack.Screen 
+                name="Settings" 
+                component={SettingsScreen} 
+              />
+              <Stack.Screen 
+                name="EditProfile" 
+                component={EditProfileScreen} 
+              />
+            </>
+          ) : (
+            <Stack.Screen 
+              name="Onboarding" 
+              component={OnboardingScreen} 
+            />
+          )
         ) : (
           <Stack.Screen 
             name="Auth" 

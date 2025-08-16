@@ -71,7 +71,11 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ navigation }) => {
         const success = await ProfileService.createOrUpdateProfile(user.id, userProfile);
         
         if (success) {
-          navigation.replace('Home');
+          // Force a re-check of the profile in App.tsx by triggering a navigation reset
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'Home' }],
+          });
         } else {
           Alert.alert('Erreur', 'Impossible de sauvegarder le profil');
         }

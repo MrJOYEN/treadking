@@ -3,7 +3,13 @@
   "version": "0.1.0",
   "main": "index.ts",
   "description": "Application mobile d'entraînement personnalisé pour tapis de course",
-  "keywords": ["react-native", "expo", "fitness", "running", "treadmill"],
+  "keywords": [
+    "react-native",
+    "expo",
+    "fitness",
+    "running",
+    "treadmill"
+  ],
   "author": "TreadKing Team",
   "scripts": {
     "start": "expo start",
@@ -29,7 +35,8 @@
     "react-native-screens": "~4.11.1",
     "react-native-svg": "^15.12.1",
     "react-native-url-polyfill": "^2.0.0",
-    "react-native-web": "^0.20.0"
+    "react-native-web": "^0.20.0",
+    "expo-linear-gradient": "~14.1.5"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
