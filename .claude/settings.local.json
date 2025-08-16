@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx expo install:*)",
+      "Bash(npm install:*)",
+      "WebSearch",
+      "Bash(env)",
+      "mcp__supabase__apply_migration",
+      "mcp__supabase__get_project",
+      "mcp__supabase__get_logs",
+      "mcp__supabase__execute_sql",
+      "Bash(npm uninstall:*)"
+    ],
+    "additionalDirectories": [
+      "C:\\c\\wamp64\\www"
+    ]
+  }
+}
