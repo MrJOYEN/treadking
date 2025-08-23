@@ -1,11 +1,22 @@
 import { UserProfile, TrainingPlan, PlannedWorkout, TrainingSegment, WorkoutType } from '../types';
 import { TrainingPlanService } from './trainingPlanService';
+import { CalendarService } from './calendarService';
+import Constants from 'expo-constants';
+
+// Fonction pour générer des UUIDs compatibles React Native
+function generateUUID(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
 
 // Configuration pour l'API OpenAI avec Assistant personnalisé
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
+const OPENAI_API_KEY = Constants.expoConfig?.extra?.openaiApiKey || '';
 
-// ID de votre Assistant OpenAI personnalisé (à remplacer)
-const ASSISTANT_ID = process.env.OPENAI_ASSISTANT_ID || '';
+// ID de votre Assistant OpenAI personnalisé
+const ASSISTANT_ID = Constants.expoConfig?.extra?.openaiAssistantId || '';
 
 interface PlanGenerationRequest {
   userProfile: UserProfile;
@@ -18,27 +29,149 @@ interface PlanGenerationRequest {
 
 export class AIService {
   
-  static async generateAndSaveTrainingPlan(
+  /**
+   * Calcule le nombre optimal de séances par semaine selon le niveau et la sécurité
+   */
+  private static calculateOptimalWorkouts(
+    level: string, 
+    availability: number, 
+    goal: string, 
+    experience: string[]
+  ): { workoutsPerWeek: number; explanation: string } {
+    
+    // Règles de sécurité par niveau
+    switch (level) {
+      case 'beginner':
+        const beginnerMax = goal.toLowerCase().includes('marathon') ? 3 : 4;
+        const beginnerWorkouts = Math.min(availability, beginnerMax);
+        const explanation = availability > beginnerMax 
+          ? `Pour votre sécurité en tant que débutant, nous recommandons ${beginnerWorkouts} séances/semaine au lieu de ${availability}. Cela permet une progression progressive et réduit les risques de blessure.`
+          : '';
+        return { workoutsPerWeek: beginnerWorkouts, explanation };
+        
+      case 'intermediate':
+        const intermediateMax = 5;
+        const intermediateWorkouts = Math.min(availability, intermediateMax);
+        const intExplanation = availability > intermediateMax 
+          ? `Nous recommandons ${intermediateWorkouts} séances/semaine pour optimiser votre progression sans risque de surentraînement.`
+          : '';
+        return { workoutsPerWeek: intermediateWorkouts, explanation: intExplanation };
+        
+      case 'advanced':
+        // Les coureurs avancés peuvent utiliser toute leur disponibilité
+        return { workoutsPerWeek: availability, explanation: '' };
+        
+      default:
+        // Par défaut, traiter comme intermédiaire
+        const defaultWorkouts = Math.min(availability, 4);
+        return { 
+          workoutsPerWeek: defaultWorkouts, 
+          explanation: 'Plan adapté avec un nombre sécurisé de séances par semaine.' 
+        };
+    }
+  }
+
+  /**
+   * Génère et sauvegarde un plan à partir du JSON de debug fixe
+   */
+  static async generateAndSaveDebugPlan(
     userId: string, 
     request: PlanGenerationRequest
-  ): Promise<{ success: boolean; plan?: TrainingPlan; planId?: string; error?: string }> {
+  ): Promise<{ success: boolean; plan?: TrainingPlan; planId?: string; error?: string; explanation?: string }> {
     try {
-      // Generate the training plan
-      const trainingPlan = await this.generateTrainingPlan(request);
+      // Calculer le nombre optimal de séances avec logique de sécurité
+      const { workoutsPerWeek, explanation } = this.calculateOptimalWorkouts(
+        request.userProfile.level,
+        request.userProfile.weeklyAvailability,
+        request.goal,
+        request.userProfile.previousExperience
+      );
+      
+      // Mettre à jour la requête avec le nombre optimal
+      const optimizedRequest = {
+        ...request,
+        userProfile: {
+          ...request.userProfile,
+          weeklyAvailability: workoutsPerWeek
+        }
+      };
+      
+      // Generate the training plan from debug JSON
+      const trainingPlan = await this.generatePlanFromDebugJSON(optimizedRequest);
       
       // Save to Supabase
+      console.log('About to save debug plan via TrainingPlanService');
       const planId = await TrainingPlanService.createTrainingPlan(userId, trainingPlan);
       
       if (planId) {
         return { 
           success: true, 
           plan: trainingPlan, 
-          planId 
+          planId,
+          explanation: explanation ? `${explanation} (Plan debug utilisé)` : 'Plan debug utilisé' 
         };
       } else {
         return { 
           success: false, 
-          error: 'Failed to save training plan to database' 
+          error: 'Failed to save debug training plan to database',
+          explanation 
+        };
+      }
+    } catch (error) {
+      console.error('Error in generateAndSaveDebugPlan:', error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown error occurred' 
+      };
+    }
+  }
+  
+  static async generateAndSaveTrainingPlan(
+    userId: string, 
+    request: PlanGenerationRequest
+  ): Promise<{ success: boolean; plan?: TrainingPlan; planId?: string; error?: string; explanation?: string }> {
+    try {
+      // Calculer le nombre optimal de séances avec logique de sécurité
+      const { workoutsPerWeek, explanation } = this.calculateOptimalWorkouts(
+        request.userProfile.level,
+        request.userProfile.weeklyAvailability,
+        request.goal,
+        request.userProfile.previousExperience
+      );
+      
+      // Mettre à jour la requête avec le nombre optimal
+      const optimizedRequest = {
+        ...request,
+        userProfile: {
+          ...request.userProfile,
+          weeklyAvailability: workoutsPerWeek
+        }
+      };
+      
+      // Generate the training plan
+      const trainingPlan = await this.generateTrainingPlan(optimizedRequest);
+      console.log('Generated plan with', trainingPlan.plannedWorkouts?.length || 0, 'workouts');
+      
+      if (trainingPlan.plannedWorkouts?.length > 0) {
+        console.log('First workout details:', trainingPlan.plannedWorkouts[0]);
+      }
+      
+      // Save to Supabase
+      console.log('About to save training plan via TrainingPlanService');
+      const planId = await TrainingPlanService.createTrainingPlan(userId, trainingPlan);
+      
+      if (planId) {
+        return { 
+          success: true, 
+          plan: trainingPlan, 
+          planId,
+          explanation 
+        };
+      } else {
+        return { 
+          success: false, 
+          error: 'Failed to save training plan to database',
+          explanation 
         };
       }
     } catch (error) {
@@ -49,8 +182,118 @@ export class AIService {
       };
     }
   }
+
+  /**
+   * Génère un plan à partir du JSON de debug fixe
+   */
+  static async generatePlanFromDebugJSON(request: PlanGenerationRequest): Promise<TrainingPlan> {
+    console.log('🔧 Utilisation du JSON de debug fixe');
+    
+    try {
+      // Importer le JSON fixe
+      const debugPlanData = require('../../plan.json');
+      
+      // Accéder au bon chemin: trainingPlan au lieu de plan
+      const trainingPlanData = debugPlanData.trainingPlan;
+      
+      if (!trainingPlanData || !Array.isArray(trainingPlanData)) {
+        throw new Error('Structure JSON invalide: trainingPlan non trouvé');
+      }
+      
+      // Calculer le nombre de semaines d'après le JSON
+      const maxWeekNumber = Math.max(...trainingPlanData.map((w: any) => w.weekNumber));
+      console.log(`📊 JSON contient ${maxWeekNumber} semaines (ignorant les ${request.weeks} semaines de l'interface)`);
+      console.log(`🔍 DEBUG: request.weeks = ${request.weeks}, maxWeekNumber = ${maxWeekNumber}`);
+      
+      // Mapper les types de segments depuis le JSON vers les types attendus
+      const mapSegmentType = (type: string) => {
+        const typeMapping: { [key: string]: string } = {
+          'warm_up': 'warm_up',
+          'easy_run': 'easy',
+          'intervals': 'vo2max',
+          'tempo': 'tempo',
+          'cool_down': 'cool_down'
+        };
+        return typeMapping[type] || 'easy';
+      };
+      
+      // Déterminer le type d'entraînement basé sur le nom
+      const determineWorkoutType = (name: string): WorkoutType => {
+        const nameLower = name.toLowerCase();
+        if (nameLower.includes('intervalles') || nameLower.includes('fractionn')) return 'intervals';
+        if (nameLower.includes('tempo')) return 'tempo';
+        if (nameLower.includes('endurance') || nameLower.includes('facile')) return 'easy_run';
+        return 'easy_run'; // par défaut
+      };
+      
+      // Transformer au format TrainingPlan
+      const plannedWorkouts: PlannedWorkout[] = trainingPlanData.map((workout: any) => ({
+        id: generateUUID(),
+        name: workout.name,
+        description: `Séance de ${workout.estimatedDuration} minutes`,
+        workoutType: determineWorkoutType(workout.name),
+        estimatedDuration: workout.estimatedDuration,
+        estimatedDistance: Math.round(workout.estimatedDuration * 0.1 * 1000), // estimation basée sur durée
+        difficulty: 5, // difficulté moyenne par défaut
+        weekNumber: workout.weekNumber,
+        dayOfWeek: workout.dayOfWeek,
+        segments: workout.segments.map((segment: any) => ({
+          id: generateUUID(),
+          name: segment.type === 'warm_up' ? 'Échauffement' : 
+                segment.type === 'cool_down' ? 'Retour au calme' :
+                segment.type === 'easy_run' ? 'Course facile' :
+                segment.type === 'intervals' ? 'Intervalles' :
+                segment.type === 'tempo' ? 'Tempo' : 'Segment',
+          duration: segment.duration,
+          distance: Math.round(segment.duration * segment.targetSpeed / 3.6), // distance = temps * vitesse
+          targetSpeed: segment.targetSpeed,
+          targetIncline: segment.incline || 0,
+          intensity: mapSegmentType(segment.type),
+          rpe: segment.type === 'warm_up' || segment.type === 'cool_down' ? 3 :
+               segment.type === 'easy_run' ? 5 :
+               segment.type === 'intervals' ? 8 : 6,
+          instruction: segment.description || '',
+          recoveryAfter: 0,
+        })),
+        createdAt: new Date().toISOString(),
+      }));
+
+      const trainingPlan: TrainingPlan = {
+        id: generateUUID(),
+        name: `Plan d'entraînement ${maxWeekNumber} semaines`,
+        description: `Plan d'entraînement personnalisé de ${maxWeekNumber} semaines avec ${plannedWorkouts.length} séances`,
+        goal: request.goal,
+        totalWeeks: maxWeekNumber,
+        workoutsPerWeek: Math.ceil(trainingPlanData.length / maxWeekNumber),
+        startDate: request.startDate,
+        endDate: this.calculateEndDate(request.startDate, maxWeekNumber),
+        plannedWorkouts: plannedWorkouts,
+        userProfile: request.userProfile,
+        createdAt: new Date().toISOString(),
+        generatedByAI: true,
+        aiPrompt: 'JSON de debug fixe',
+      };
+
+      console.log('✅ Plan debug généré avec', plannedWorkouts.length, 'workouts');
+      console.log(`🔍 DEBUG: trainingPlan.totalWeeks = ${trainingPlan.totalWeeks}`);
+      return trainingPlan;
+      
+    } catch (error) {
+      console.error('❌ Erreur lecture JSON debug:', error);
+      // Fallback sur le plan de base en cas d'erreur
+      return this.generateFallbackPlan(request);
+    }
+  }
   
   static async generateTrainingPlan(request: PlanGenerationRequest): Promise<TrainingPlan> {
+    // Vérifier si les clés API sont configurées
+    if (!OPENAI_API_KEY || !ASSISTANT_ID) {
+      console.warn('❌ Clés API OpenAI non configurées, utilisation du plan fallback');
+      return this.generateFallbackPlan(request);
+    }
+    
+    console.log('✅ Clés API trouvées, utilisation de l\'IA OpenAI');
+    
     const prompt = this.buildTrainingPlanPrompt(request);
     
     try {
@@ -182,7 +425,7 @@ export class AIService {
       
       // Créer le plan complet avec métadonnées
       const trainingPlan: TrainingPlan = {
-        id: `plan_${Date.now()}`,
+        id: generateUUID(),
         name: parsedPlan.name,
         description: parsedPlan.description,
         goal: request.goal,
@@ -207,114 +450,49 @@ export class AIService {
     }
   }
 
-  private static getSystemPrompt(): string {
-    return `Tu es TreadKing Coach Pro, expert en entraînement course à pied spécialisé dans les plans pour tapis de course.
-
-EXPERTISE:
-- Entraîneur certifié en athlétisme et course de fond
-- Spécialiste tapis roulant : maîtrise des spécificités biomécaniques  
-- Expert en périodisation : planification scientifique des charges
-- Physiologie de l'exercice : zones d'intensité et adaptations métaboliques
-
-TYPES D'ENTRAÎNEMENTS:
-- easy_run: Course facile 60-70% FCmax, développe la base aérobie
-- intervals: Fractionné court/moyen 85-95% FCmax, améliore VO2max
-- tempo: Allure seuil 80-85% FCmax, "confortablement dur" 
-- long_run: Sortie longue 65-75% FCmax, endurance fondamentale
-- time_trial: Test chronométré, évaluation performance
-- fartlek: Jeu de vitesse varié, stimulation mentale
-- hill_training: Entraînement inclinaisons, force et puissance
-- recovery_run: Récupération active 50-60% FCmax
-- progression_run: Accélération progressive dans la séance
-- threshold: Allure marathon/seuil lactique
-
-ZONES D'INTENSITÉ:
-warm_up, recovery, easy, tempo, threshold, vo2max, neuromuscular, cool_down
-
-PRINCIPES:
-- Progression graduelle 10% max par semaine
-- Alternance stress/récupération
-- Spécificité tapis: vitesses exactes, inclinaisons
-- Périodisation: base → intensité → affûtage
-- Individualisation selon profil utilisateur
-
-Tu DOIS générer exactement le nombre de séances demandé avec weekNumber et dayOfWeek précis. Répondre UNIQUEMENT en JSON structuré.`;
-  }
 
   private static buildTrainingPlanPrompt(request: PlanGenerationRequest): string {
     const { userProfile, goal, weeks, intensity, focusTypes, startDate } = request;
     
-    return `Crée un plan d'entraînement de ${weeks} semaines pour atteindre l'objectif ${goal}.
+    const dayNames = ['', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
+    const selectedDayNames = userProfile.availableDays 
+      ? userProfile.availableDays.map(day => dayNames[day]).join(', ')
+      : 'non spécifiés';
+    const availableDaysNumbers = userProfile.availableDays 
+      ? `[${userProfile.availableDays.join(',')}]`
+      : 'automatique';
 
-PROFIL UTILISATEUR:
-- Niveau: ${userProfile.level}
-- Objectif: ${userProfile.goal}
-- Disponibilité: ${userProfile.weeklyAvailability} jours/semaine
-- Expérience: ${userProfile.previousExperience.join(', ')}
+    return `OBJECTIF: ${goal}
+NIVEAU: ${userProfile.level}
+DURÉE: ${weeks} semaines
+DISPONIBILITÉ: ${userProfile.weeklyAvailability} séances/semaine
+JOURS SÉLECTIONNÉS: ${selectedDayNames}
+JOURS CODES: ${availableDaysNumbers}
+INTENSITÉ: ${intensity}
+FOCUS: ${focusTypes.join(', ')}
 
-ÉQUIPEMENT TAPIS:
+ÉQUIPEMENT:
 - Vitesse max: ${userProfile.maxSpeed} km/h
 - Inclinaison max: ${userProfile.maxIncline}%
-- Capteur FC: ${userProfile.hasHeartRateMonitor ? 'Oui' : 'Non'}
-- Vitesse marche: ${userProfile.preferredSpeedRange.walkingSpeed} km/h
-- Vitesse course: ${userProfile.preferredSpeedRange.runningSpeed} km/h
-- Vitesse sprint: ${userProfile.preferredSpeedRange.sprintSpeed || 'Inconnue'} km/h
-- Durée habituelle: ${userProfile.usualWorkoutDuration} min
+- Cardio: ${userProfile.hasHeartRateMonitor ? 'oui' : 'non'}
 
-PARAMÈTRES PLAN:
-- Intensité souhaitée: ${intensity}
-- Types préférés: ${focusTypes.join(', ')}
-- Date début: ${startDate}
+VITESSES:
+- Marche: ${userProfile.preferredSpeedRange.walkingSpeed} km/h
+- Course: ${userProfile.preferredSpeedRange.runningSpeed} km/h
+- Sprint: ${userProfile.preferredSpeedRange.sprintSpeed || 'non définie'} km/h
 
-CONTRAINTES:
-- Utiliser uniquement les vitesses dans les capacités du tapis
-- Adapter les intensités au niveau du coureur
-- Respecter la progression physiologique
-- Inclure échauffement et retour au calme obligatoires
-- Instructions claires pour chaque segment
+SÉANCE: ${userProfile.usualWorkoutDuration} minutes habituelle
+EXPÉRIENCE: ${userProfile.previousExperience.join(', ') || 'débutant'}
+CONTRAINTES: ${userProfile.physicalConstraints?.join(', ') || 'aucune'}
+DATE DÉBUT: ${startDate}
 
-IMPORTANT: Génère exactement ${userProfile.weeklyAvailability} séances par semaine × ${weeks} semaines = ${userProfile.weeklyAvailability * weeks} séances au total.
-
-FORMAT RÉPONSE JSON:
-{
-  "name": "Nom du plan",
-  "description": "Description détaillée", 
-  "workoutsPerWeek": ${userProfile.weeklyAvailability},
-  "workouts": [
-    // TOUTES les séances avec weekNumber et dayOfWeek précis
-    {
-      "name": "Nom séance semaine X",
-      "description": "Description",
-      "workoutType": "easy_run|intervals|tempo|etc",
-      "estimatedDuration": minutes,
-      "estimatedDistance": meters,
-      "difficulty": 1-10,
-      "targetPace": minutes_per_km,
-      "weekNumber": 1-${weeks}, // OBLIGATOIRE
-      "dayOfWeek": 1-7, // 1=lun, 3=mer, 5=ven
-      "segments": [
-        {
-          "name": "Échauffement",
-          "duration": seconds,
-          "distance": meters_optional,
-          "targetSpeed": km_h,
-          "targetIncline": percentage,
-          "intensity": "warm_up|easy|tempo|etc",
-          "rpe": 1-10,
-          "instruction": "Instructions détaillées pour le coureur",
-          "recoveryAfter": seconds_optional
-        }
-      ]
-    }
-  ]
-}
-
-OBLIGATOIRE: Tu DOIS générer EXACTEMENT ${userProfile.weeklyAvailability * weeks} séances complètes avec progression semaine par semaine !`;
+TOTAL SÉANCES REQUIS: ${userProfile.weeklyAvailability * weeks}`;
   }
+  
 
   private static formatPlannedWorkout(aiWorkout: any): any {
     return {
-      id: `workout_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: generateUUID(),
       name: aiWorkout.name,
       description: aiWorkout.description,
       workoutType: aiWorkout.workoutType,
@@ -325,7 +503,7 @@ OBLIGATOIRE: Tu DOIS générer EXACTEMENT ${userProfile.weeklyAvailability * wee
       weekNumber: aiWorkout.weekNumber, // Préserver pour le calendrier
       dayOfWeek: aiWorkout.dayOfWeek, // Préserver pour le calendrier
       segments: aiWorkout.segments.map((segment: any) => ({
-        id: `segment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        id: generateUUID(),
         name: segment.name,
         duration: segment.duration,
         distance: segment.distance,
@@ -351,58 +529,82 @@ OBLIGATOIRE: Tu DOIS générer EXACTEMENT ${userProfile.weeklyAvailability * wee
     // Plan de base si l'IA échoue
     const { userProfile, goal, weeks, startDate } = request;
     
-    const sampleWorkouts: PlannedWorkout[] = [
-      {
-        id: 'fallback_1',
-        name: 'Course facile',
-        description: 'Séance de course facile pour développer l\'endurance de base',
-        workoutType: 'easy_run',
-        estimatedDuration: 30,
-        estimatedDistance: 3000,
-        difficulty: 3,
-        segments: [
-          {
-            id: 'seg_1',
-            name: 'Échauffement',
-            duration: 300,
-            targetSpeed: userProfile.preferredSpeedRange.walkingSpeed,
-            targetIncline: 0,
-            intensity: 'warm_up',
-            rpe: 3,
-            instruction: 'Marche rapide pour préparer les muscles'
-          },
-          {
-            id: 'seg_2', 
-            name: 'Course facile',
-            duration: 1200,
-            targetSpeed: userProfile.preferredSpeedRange.runningSpeed,
-            targetIncline: 0,
-            intensity: 'easy',
-            rpe: 5,
-            instruction: 'Course confortable, vous devez pouvoir tenir une conversation'
-          },
-          {
-            id: 'seg_3',
-            name: 'Retour au calme',
-            duration: 300,
-            targetSpeed: userProfile.preferredSpeedRange.walkingSpeed,
-            targetIncline: 0,
-            intensity: 'cool_down',
-            rpe: 2,
-            instruction: 'Marche lente pour récupérer progressivement'
-          }
-        ],
-        createdAt: new Date().toISOString(),
+    // Générer les workouts selon la logique de sécurité
+    const { workoutsPerWeek } = this.calculateOptimalWorkouts(
+      userProfile.level,
+      userProfile.weeklyAvailability,
+      goal,
+      userProfile.previousExperience
+    );
+    
+    const sampleWorkouts: PlannedWorkout[] = [];
+    
+    // Générer les workouts pour toutes les semaines
+    for (let week = 1; week <= weeks; week++) {
+      for (let day = 1; day <= workoutsPerWeek; day++) {
+        const workoutTypes = ['easy_run', 'intervals', 'tempo'];
+        const workoutType = workoutTypes[(day - 1) % workoutTypes.length];
+        
+        sampleWorkouts.push({
+          id: generateUUID(),
+          name: `${workoutType === 'easy_run' ? 'Course facile' : workoutType === 'intervals' ? 'Intervalles' : 'Tempo'} - Semaine ${week}`,
+          description: `Séance de ${workoutType === 'easy_run' ? 'course facile' : workoutType === 'intervals' ? 'fractionné' : 'tempo'} pour développer l'endurance`,
+          workoutType: workoutType as WorkoutType,
+          estimatedDuration: userProfile.usualWorkoutDuration,
+          estimatedDistance: Math.round((userProfile.usualWorkoutDuration / 60) * userProfile.preferredSpeedRange.runningSpeed * 1000),
+          difficulty: workoutType === 'easy_run' ? 3 : workoutType === 'intervals' ? 6 : 5,
+          weekNumber: week,
+          dayOfWeek: day,
+          segments: [
+            {
+              id: generateUUID(),
+              name: 'Échauffement',
+              duration: 300,
+              targetSpeed: userProfile.preferredSpeedRange.walkingSpeed,
+              targetIncline: 0,
+              intensity: 'warm_up',
+              rpe: 3,
+              instruction: 'Marche rapide pour préparer les muscles'
+            },
+            {
+              id: generateUUID(), 
+              name: workoutType === 'easy_run' ? 'Course facile' : workoutType === 'intervals' ? 'Intervalles' : 'Tempo',
+              duration: (userProfile.usualWorkoutDuration - 10) * 60,
+              targetSpeed: workoutType === 'easy_run' ? 
+                userProfile.preferredSpeedRange.runningSpeed * 0.9 : 
+                userProfile.preferredSpeedRange.runningSpeed,
+              targetIncline: 0,
+              intensity: workoutType === 'easy_run' ? 'easy' : workoutType === 'intervals' ? 'vo2max' : 'tempo',
+              rpe: workoutType === 'easy_run' ? 5 : workoutType === 'intervals' ? 8 : 6,
+              instruction: workoutType === 'easy_run' ? 
+                'Course confortable, vous devez pouvoir tenir une conversation' :
+                workoutType === 'intervals' ?
+                'Alternez 2 minutes rapides et 1 minute de récupération' :
+                'Allure soutenue mais contrôlée'
+            },
+            {
+              id: generateUUID(),
+              name: 'Retour au calme',
+              duration: 300,
+              targetSpeed: userProfile.preferredSpeedRange.walkingSpeed,
+              targetIncline: 0,
+              intensity: 'cool_down',
+              rpe: 2,
+              instruction: 'Marche lente pour récupérer progressivement'
+            }
+          ],
+          createdAt: new Date().toISOString(),
+        });
       }
-    ];
+    }
 
     return {
-      id: `fallback_plan_${Date.now()}`,
+      id: generateUUID(),
       name: `Plan ${goal} - ${weeks} semaines`,
-      description: 'Plan d\'entraînement généré automatiquement',
+      description: `Plan d'entraînement de ${weeks} semaines avec ${workoutsPerWeek} séances par semaine, adapté à votre niveau ${userProfile.level}`,
       goal,
       totalWeeks: weeks,
-      workoutsPerWeek: 3,
+      workoutsPerWeek: workoutsPerWeek,
       startDate,
       endDate: this.calculateEndDate(startDate, weeks),
       plannedWorkouts: sampleWorkouts,
@@ -410,5 +612,201 @@ OBLIGATOIRE: Tu DOIS générer EXACTEMENT ${userProfile.weeklyAvailability * wee
       createdAt: new Date().toISOString(),
       generatedByAI: false,
     };
+  }
+
+  /**
+   * Fonction de test pour valider le système avec un profil débutant/marathon/6 jours
+   */
+  static async testBeginnerMarathonProfile(): Promise<void> {
+    console.log('🧪 TEST: Profil débutant/marathon/6 jours disponibilité');
+    
+    // Profil de test débutant
+    const testProfile = {
+      name: 'Test Débutant',
+      level: 'beginner' as const,
+      goal: '5k' as const, // Profil basique même si l'objectif est marathon
+      weeklyAvailability: 6, // 6 jours disponibles
+      previousExperience: [],
+      physicalConstraints: [],
+      maxSpeed: 12,
+      maxIncline: 15,
+      hasHeartRateMonitor: false,
+      preferredSpeedRange: {
+        walkingSpeed: 4,
+        runningSpeed: 7, // Débutant qui peut à peine courir 4km
+        sprintSpeed: 10
+      },
+      comfortableInclines: {
+        flat: 0,
+        moderate: 2,
+        steep: 5
+      },
+      usualWorkoutDuration: 30, // 30 minutes seulement
+      preferredWorkoutTimes: ['evening'],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    // Calcul avec la logique de sécurité
+    const { workoutsPerWeek, explanation } = this.calculateOptimalWorkouts(
+      testProfile.level,
+      testProfile.weeklyAvailability,
+      'Marathon', // Objectif marathon
+      testProfile.previousExperience
+    );
+
+    console.log('📊 Résultats du test:');
+    console.log(`- Disponibilité initiale: ${testProfile.weeklyAvailability} jours/semaine`);
+    console.log(`- Séances recommandées: ${workoutsPerWeek} jours/semaine`);
+    console.log(`- Explication: ${explanation}`);
+    
+    // Vérifier que la logique fonctionne correctement
+    const expectedWorkouts = 3; // Débutant marathon = 3 séances max
+    if (workoutsPerWeek === expectedWorkouts && explanation.length > 0) {
+      console.log('✅ TEST RÉUSSI: La logique de sécurité fonctionne correctement');
+    } else {
+      console.log('❌ TEST ÉCHOUÉ: La logique ne fonctionne pas comme attendu');
+      console.log(`Expected: ${expectedWorkouts}, Got: ${workoutsPerWeek}`);
+    }
+  }
+
+  /**
+   * Test complet du système de dates et calendrier
+   */
+  static async testCalendarIntegration(): Promise<void> {
+    console.log('📅 TEST: Intégration calendrier et dates précises');
+    
+    const testProfile = {
+      name: 'Test Calendar',
+      level: 'intermediate' as const,
+      goal: '5k' as const,
+      weeklyAvailability: 3,
+      previousExperience: [],
+      physicalConstraints: [],
+      maxSpeed: 12,
+      maxIncline: 10,
+      hasHeartRateMonitor: false,
+      preferredSpeedRange: {
+        walkingSpeed: 4.5,
+        runningSpeed: 8,
+        sprintSpeed: 12
+      },
+      comfortableInclines: {
+        flat: 0,
+        moderate: 3,
+        steep: 6
+      },
+      usualWorkoutDuration: 45,
+      preferredWorkoutTimes: ['morning'],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    // Créer un plan de test avec fallback
+    const startDate = '2024-08-22T08:00:00.000Z'; // 22 août 2024
+    const testPlan = this.generateFallbackPlan({
+      userProfile: testProfile,
+      goal: '5K Challenge',
+      weeks: 2,
+      intensity: 'moderate',
+      focusTypes: ['easy_run', 'intervals'],
+      startDate
+    });
+
+    console.log(`📋 Plan généré: ${testPlan.name}`);
+    console.log(`📊 ${testPlan.plannedWorkouts.length} entraînements sur ${testPlan.totalWeeks} semaines`);
+
+    // Calculer les dates avec le CalendarService
+    const workoutsWithDates = CalendarService.calculateWorkoutDates(
+      testPlan.plannedWorkouts,
+      startDate
+    );
+
+    console.log('\n📅 Dates calculées:');
+    workoutsWithDates.forEach((workout, index) => {
+      if (workout.scheduledDate) {
+        const formattedDate = CalendarService.formatFullWorkoutDate(workout.scheduledDate);
+        const shortDate = CalendarService.formatWorkoutDate(workout.scheduledDate);
+        console.log(`${index + 1}. ${workout.name} - ${shortDate} (${formattedDate})`);
+      }
+    });
+
+    // Test des fonctions utilitaires
+    console.log('\n🔧 Tests fonctions utilitaires:');
+    
+    const upcomingWorkouts = CalendarService.getUpcomingWorkouts(workoutsWithDates, 7);
+    console.log(`- Prochains entraînements (7j): ${upcomingWorkouts.length}`);
+    
+    const groupedByWeek = CalendarService.groupWorkoutsByWeek(workoutsWithDates);
+    console.log(`- Semaines planifiées: ${Object.keys(groupedByWeek).length}`);
+    
+    Object.entries(groupedByWeek).forEach(([weekNum, week]) => {
+      console.log(`  Semaine ${weekNum}: ${week.workouts.length} séances du ${CalendarService.formatWorkoutDate(week.startDate)} au ${CalendarService.formatWorkoutDate(week.endDate)}`);
+    });
+
+    console.log('\n✅ Test du système calendrier terminé!');
+  }
+
+  /**
+   * Test du nouveau prompt simplifié
+   */
+  static testNewPromptFormat(): void {
+    console.log('🧪 TEST: Nouveau format de prompt simplifié\n');
+    
+    const testProfile = {
+      name: 'Test Prompt',
+      level: 'beginner' as const,
+      goal: 'marathon' as const,
+      weeklyAvailability: 3,
+      previousExperience: [],
+      physicalConstraints: [],
+      maxSpeed: 20,
+      maxIncline: 15,
+      hasHeartRateMonitor: true,
+      preferredSpeedRange: {
+        walkingSpeed: 5,
+        runningSpeed: 7,
+        sprintSpeed: 15
+      },
+      comfortableInclines: {
+        flat: 0,
+        moderate: 3,
+        steep: 8
+      },
+      usualWorkoutDuration: 60,
+      preferredWorkoutTimes: ['morning'],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    const request: PlanGenerationRequest = {
+      userProfile: testProfile,
+      goal: 'Marathon',
+      weeks: 20,
+      intensity: 'moderate',
+      focusTypes: ['easy_run', 'intervals', 'tempo'],
+      startDate: '2025-08-22T08:57:21.843Z'
+    };
+
+    const prompt = this.buildTrainingPlanPrompt(request);
+    
+    console.log('📝 ANCIEN PROMPT (~77 lignes):');
+    console.log('❌ Instructions système répétées');
+    console.log('❌ Format JSON dans le prompt');
+    console.log('❌ Guidelines de sécurité répétées');
+    console.log('❌ Contraintes techniques répétées\n');
+    
+    console.log('📝 NOUVEAU PROMPT SIMPLIFIÉ:');
+    console.log('-------------------');
+    console.log(prompt);
+    console.log('-------------------');
+    
+    const lineCount = prompt.split('\n').length;
+    console.log(`\n📊 Statistiques:`);
+    console.log(`✅ Lignes: ${lineCount} (vs ~77 avant)`);
+    console.log(`✅ Réduction: ${Math.round((1 - lineCount/77) * 100)}%`);
+    console.log(`✅ Variables seulement: Objectif, niveau, équipement, contraintes`);
+    console.log(`✅ Aucune instruction système répétée`);
+    console.log(`\n🎯 Le prompt ne contient plus que les variables spécifiques !`);
   }
 }

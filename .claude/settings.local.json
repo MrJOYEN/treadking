@@ -9,7 +9,8 @@
       "mcp__supabase__get_project",
       "mcp__supabase__get_logs",
       "mcp__supabase__execute_sql",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "mcp__supabase__list_tables"
     ],
     "additionalDirectories": [
       "C:\\c\\wamp64\\www"

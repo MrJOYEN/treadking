@@ -2,7 +2,8 @@ export interface UserProfile {
   name: string;
   level: 'beginner' | 'intermediate' | 'advanced';
   goal: '5k' | '10k' | 'half_marathon' | 'marathon' | 'ultra_marathon';
-  weeklyAvailability: number;
+  weeklyAvailability: number; // Legacy - sera remplacé par availableDays
+  availableDays?: number[]; // Jours de la semaine sélectionnés [1,3,5] = Lundi, Mercredi, Vendredi
   previousExperience: string[];
   physicalConstraints: string[];
   
@@ -94,6 +95,9 @@ export interface PlannedWorkout {
   difficulty: number; // 1-10
   targetPace?: number; // minutes per km
   notes?: string;
+  weekNumber?: number; // Semaine du plan (1, 2, 3...)
+  dayOfWeek?: number; // Jour de la semaine (1=lundi, 2=mardi, etc.)
+  scheduledDate?: string; // Date précise calculée (ISO string)
   createdAt: string;
 }
 

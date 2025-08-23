@@ -10,6 +10,9 @@ import HomeScreen from './src/screens/HomeScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import EditProfileScreen from './src/screens/EditProfileScreen';
+import PlanScreen from './src/screens/PlanScreen';
+import CreatePlanScreen from './src/screens/CreatePlanScreen';
+import PlanDetailScreen from './src/screens/PlanDetailScreen';
 import { ProfileService } from './src/services/profileService';
 
 const Stack = createNativeStackNavigator();
@@ -78,6 +81,18 @@ const AppNavigator = () => {
               <Stack.Screen 
                 name="EditProfile" 
                 component={EditProfileScreen} 
+              />
+              <Stack.Screen 
+                name="Plan" 
+                component={PlanScreen} 
+              />
+              <Stack.Screen 
+                name="CreatePlan" 
+                component={CreatePlanScreen} 
+              />
+              <Stack.Screen 
+                name="PlanDetail" 
+                component={PlanDetailScreen} 
               />
             </>
           ) : (

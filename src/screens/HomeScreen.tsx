@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../contexts/AuthContext';
 import { Colors } from '../theme/colors';
 import { CommonStyles, Typography, Spacing, BorderRadius, Shadows } from '../theme/commonStyles';
@@ -22,6 +23,7 @@ interface HomeScreenProps {
 const { width } = Dimensions.get('window');
 
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const { user, signOut } = useAuth();
   const [selectedDay, setSelectedDay] = useState(new Date().getDate());
 
@@ -78,7 +80,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
       
       {/* Header with profile and notifications */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + Spacing.lg }]}>
         <TouchableOpacity style={styles.profileAvatar}>
           <Text style={styles.profileInitial}>
             {user?.email?.charAt(0).toUpperCase() || 'U'}
@@ -230,23 +232,23 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         </View>
 
         {/* Bottom Spacing */}
-        <View style={styles.bottomSpacing} />
+        <View style={[styles.bottomSpacing, { height: insets.bottom + 160 }]} />
 
       </ScrollView>
 
       {/* Record Workout Button */}
-      <TouchableOpacity style={styles.recordButton}>
+      <TouchableOpacity style={[styles.recordButton, { bottom: insets.bottom + 90 }]}>
         <Ionicons name="play" size={20} color="white" style={styles.recordIcon} />
         <Text style={styles.recordText}>Record workout</Text>
       </TouchableOpacity>
 
       {/* Bottom Navigation */}
-      <View style={styles.bottomNav}>
+      <View style={[styles.bottomNav, { paddingBottom: insets.bottom + Spacing.md }]}>
         <TouchableOpacity style={styles.navItem}>
           <Ionicons name="today" size={24} color={Colors.accent} />
           <Text style={[styles.navLabel, { color: Colors.accent }]}>Today</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem}>
+        <TouchableOpacity style={styles.navItem} onPress={() => navigation?.navigate('Plan')}>
           <Ionicons name="calendar-outline" size={24} color={Colors.navigation.inactive} />
           <Text style={styles.navLabel}>Plan</Text>
         </TouchableOpacity>
@@ -277,7 +279,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.lg,
     paddingBottom: Spacing.md,
     backgroundColor: Colors.background,
   },
@@ -532,11 +533,10 @@ const styles = StyleSheet.create({
     color: Colors.textOnDark,
   },
   bottomSpacing: {
-    height: 100,
+    // height sera défini dynamiquement avec insets.bottom + 160
   },
   recordButton: {
     position: 'absolute',
-    bottom: 90,
     left: Spacing.xl,
     right: Spacing.xl,
     backgroundColor: Colors.primary,

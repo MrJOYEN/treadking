@@ -1,0 +1,468 @@
+{
+    "trainingPlan": [
+      {
+        "weekNumber": 1,
+        "dayOfWeek": 1,
+        "name": "Éveil Doux",
+        "estimatedDuration": 30,
+        "segments": [
+          {
+            "type": "warm_up",
+            "duration": 600,
+            "targetSpeed": 5,
+            "incline": 0,
+            "description": "Marche progressive pour préparer le corps à l'effort."
+          },
+          {
+            "type": "easy_run",
+            "duration": 1200,
+            "targetSpeed": 6.5,
+            "incline": 0,
+            "description": "Course facile à allure conversationnelle pour développer la base aérobie."
+          },
+          {
+            "type": "cool_down",
+            "duration": 600,
+            "targetSpeed": 5,
+            "incline": 0,
+            "description": "Retour au calme en marchant pour éliminer les toxines."
+          }
+        ]
+      },
+      {
+        "weekNumber": 1,
+        "dayOfWeek": 2,
+        "name": "Premiers Intervalles",
+        "estimatedDuration": 30,
+        "segments": [
+          {
+            "type": "warm_up",
+            "duration": 600,
+            "targetSpeed": 5,
+            "incline": 0,
+            "description": "Échauffement progressif en marche et trot léger."
+          },
+          {
+            "type": "intervals",
+            "duration": 1200,
+            "targetSpeed": 8,
+            "incline": 0,
+            "description": "Fractionné court pour améliorer la VO2max, alternance 1 min rapide / 1 min récupération."
+          },
+          {
+            "type": "cool_down",
+            "duration": 600,
+            "targetSpeed": 5,
+            "incline": 0,
+            "description": "Retour au calme en marchant."
+          }
+        ]
+      },
+      {
+        "weekNumber": 1,
+        "dayOfWeek": 3,
+        "name": "Endurance Fondamentale",
+        "estimatedDuration": 35,
+        "segments": [
+          {
+            "type": "warm_up",
+            "duration": 600,
+            "targetSpeed": 5,
+            "incline": 0,
+            "description": "Marche progressive pour préparer les muscles."
+          },
+          {
+            "type": "easy_run",
+            "duration": 1500,
+            "targetSpeed": 6.5,
+            "incline": 0,
+            "description": "Course facile pour renforcer l'endurance aérobie."
+          },
+          {
+            "type": "cool_down",
+            "duration": 600,
+            "targetSpeed": 5,
+            "incline": 0,
+            "description": "Retour au calme en marchant."
+          }
+        ]
+      },
+      {
+        "weekNumber": 1,
+        "dayOfWeek": 4,
+        "name": "Tempo Confortable",
+        "estimatedDuration": 35,
+        "segments": [
+          {
+            "type": "warm_up",
+            "duration": 600,
+            "targetSpeed": 5,
+            "incline": 0,
+            "description": "Échauffement progressif."
+          },
+          {
+            "type": "tempo",
+            "duration": 1500,
+            "targetSpeed": 7,
+            "incline": 0,
+            "description": "Allure seuil confortable pour améliorer l'efficacité métabolique."
+          },
+          {
+            "type": "cool_down",
+            "duration": 600,
+            "targetSpeed": 5,
+            "incline": 0,
+            "description": "Retour au calme en marchant."
+          }
+        ]
+      },
+      {
+        "weekNumber": 2,
+        "dayOfWeek": 1,
+        "name": "Progression Douce",
+        "estimatedDuration": 35,
+        "segments": [
+          {
+            "type": "warm_up",
+            "duration": 600,
+            "targetSpeed": 5,
+            "incline": 0,
+            "description": "Marche progressive."
+          },
+          {
+            "type": "easy_run",
+            "duration": 1500,
+            "targetSpeed": 6.7,
+            "incline": 0,
+            "description": "Course facile avec légère augmentation de la vitesse."
+          },
+          {
+            "type": "cool_down",
+            "duration": 600,
+            "targetSpeed": 5,
+            "incline": 0,
+            "description": "Retour au calme."
+          }
+        ]
+      },
+      {
+        "weekNumber": 2,
+        "dayOfWeek": 2,
+        "name": "Intervalles Renforcés",
+        "estimatedDuration": 35,
+        "segments": [
+          {
+            "type": "warm_up",
+            "duration": 600,
+            "targetSpeed": 5,
+            "incline": 0,
+            "description": "Échauffement progressif."
+          },
+          {
+            "type": "intervals",
+            "duration": 1500,
+            "targetSpeed": 8.5,
+            "incline": 0,
+            "description": "Fractionné court avec intensité modérée, alternance 1 min rapide / 1 min récupération."
+          },
+          {
+            "type": "cool_down",
+            "duration": 600,
+            "targetSpeed": 5,
+            "incline": 0,
+            "description": "Retour au calme."
+          }
+        ]
+      },
+      {
+        "weekNumber": 2,
+        "dayOfWeek": 3,
+        "name": "Endurance Renforcée",
+        "estimatedDuration": 40,
+        "segments": [
+          {
+            "type": "warm_up",
+            "duration": 600,
+            "targetSpeed": 5,
+            "incline": 0,
+            "description": "Marche progressive."
+          },
+          {
+            "type": "easy_run",
+            "duration": 1800,
+            "targetSpeed": 6.7,
+            "incline": 0,
+            "description": "Course facile plus longue pour renforcer l'endurance."
+          },
+          {
+            "type": "cool_down",
+            "duration": 600,
+            "targetSpeed": 5,
+            "incline": 0,
+            "description": "Retour au calme."
+          }
+        ]
+      },
+      {
+        "weekNumber": 2,
+        "dayOfWeek": 4,
+        "name": "Tempo Progressif",
+        "estimatedDuration": 40,
+        "segments": [
+          {
+            "type": "warm_up",
+            "duration": 600,
+            "targetSpeed": 5,
+            "incline": 0,
+            "description": "Échauffement progressif."
+          },
+          {
+            "type": "tempo",
+            "duration": 1800,
+            "targetSpeed": 7.2,
+            "incline": 0,
+            "description": "Allure seuil confortable avec légère progression."
+          },
+          {
+            "type": "cool_down",
+            "duration": 600,
+            "targetSpeed": 5,
+            "incline": 0,
+            "description": "Retour au calme."
+          }
+        ]
+      },
+      {
+        "weekNumber": 3,
+        "dayOfWeek": 1,
+        "name": "Endurance Consolidée",
+        "estimatedDuration": 40,
+        "segments": [
+          {
+            "type": "warm_up",
+            "duration": 600,
+            "targetSpeed": 5,
+            "incline": 0,
+            "description": "Marche progressive."
+          },
+          {
+            "type": "easy_run",
+            "duration": 1800,
+            "targetSpeed": 7,
+            "incline": 0,
+            "description": "Course facile à allure stable."
+          },
+          {
+            "type": "cool_down",
+            "duration": 600,
+            "targetSpeed": 5,
+            "incline": 0,
+            "description": "Retour au calme."
+          }
+        ]
+      },
+      {
+        "weekNumber": 3,
+        "dayOfWeek": 2,
+        "name": "Intervalles Dynamiques",
+        "estimatedDuration": 40,
+        "segments": [
+          {
+            "type": "warm_up",
+            "duration": 600,
+            "targetSpeed": 5,
+            "incline": 0,
+            "description": "Échauffement progressif."
+          },
+          {
+            "type": "intervals",
+            "duration": 1800,
+            "targetSpeed": 9,
+            "incline": 0,
+            "description": "Fractionné court pour améliorer la puissance aérobie."
+          },
+          {
+            "type": "cool_down",
+            "duration": 600,
+            "targetSpeed": 5,
+            "incline": 0,
+            "description": "Retour au calme."
+          }
+        ]
+      },
+      {
+        "weekNumber": 3,
+        "dayOfWeek": 3,
+        "name": "Endurance Longue",
+        "estimatedDuration": 45,
+        "segments": [
+          {
+            "type": "warm_up",
+            "duration": 600,
+            "targetSpeed": 5,
+            "incline": 0,
+            "description": "Marche progressive."
+          },
+          {
+            "type": "easy_run",
+            "duration": 2100,
+            "targetSpeed": 7,
+            "incline": 0,
+            "description": "Sortie longue pour développer l'endurance fondamentale."
+          },
+          {
+            "type": "cool_down",
+            "duration": 600,
+            "targetSpeed": 5,
+            "incline": 0,
+            "description": "Retour au calme."
+          }
+        ]
+      },
+      {
+        "weekNumber": 3,
+        "dayOfWeek": 4,
+        "name": "Tempo Affirmé",
+        "estimatedDuration": 45,
+        "segments": [
+          {
+            "type": "warm_up",
+            "duration": 600,
+            "targetSpeed": 5,
+            "incline": 0,
+            "description": "Échauffement progressif."
+          },
+          {
+            "type": "tempo",
+            "duration": 2100,
+            "targetSpeed": 7.3,
+            "incline": 0,
+            "description": "Allure seuil confortable pour améliorer la capacité métabolique."
+          },
+          {
+            "type": "cool_down",
+            "duration": 600,
+            "targetSpeed": 5,
+            "incline": 0,
+            "description": "Retour au calme."
+          }
+        ]
+      },
+      {
+        "weekNumber": 4,
+        "dayOfWeek": 1,
+        "name": "Endurance Finale",
+        "estimatedDuration": 45,
+        "segments": [
+          {
+            "type": "warm_up",
+            "duration": 600,
+            "targetSpeed": 5,
+            "incline": 0,
+            "description": "Marche progressive."
+          },
+          {
+            "type": "easy_run",
+            "duration": 2100,
+            "targetSpeed": 7,
+            "incline": 0,
+            "description": "Course facile pour maintenir l'endurance."
+          },
+          {
+            "type": "cool_down",
+            "duration": 600,
+            "targetSpeed": 5,
+            "incline": 0,
+            "description": "Retour au calme."
+          }
+        ]
+      },
+      {
+        "weekNumber": 4,
+        "dayOfWeek": 2,
+        "name": "Intervalles de Puissance",
+        "estimatedDuration": 45,
+        "segments": [
+          {
+            "type": "warm_up",
+            "duration": 600,
+            "targetSpeed": 5,
+            "incline": 0,
+            "description": "Échauffement progressif."
+          },
+          {
+            "type": "intervals",
+            "duration": 2100,
+            "targetSpeed": 9.5,
+            "incline": 0,
+            "description": "Fractionné court avec intensité accrue pour booster la VO2max."
+          },
+          {
+            "type": "cool_down",
+            "duration": 600,
+            "targetSpeed": 5,
+            "incline": 0,
+            "description": "Retour au calme."
+          }
+        ]
+      },
+      {
+        "weekNumber": 4,
+        "dayOfWeek": 3,
+        "name": "Endurance Maintenue",
+        "estimatedDuration": 50,
+        "segments": [
+          {
+            "type": "warm_up",
+            "duration": 600,
+            "targetSpeed": 5,
+            "incline": 0,
+            "description": "Marche progressive."
+          },
+          {
+            "type": "easy_run",
+            "duration": 2400,
+            "targetSpeed": 7,
+            "incline": 0,
+            "description": "Sortie longue pour consolider l'endurance."
+          },
+          {
+            "type": "cool_down",
+            "duration": 600,
+            "targetSpeed": 5,
+            "incline": 0,
+            "description": "Retour au calme."
+          }
+        ]
+      },
+      {
+        "weekNumber": 4,
+        "dayOfWeek": 4,
+        "name": "Tempo Final",
+        "estimatedDuration": 50,
+        "segments": [
+          {
+            "type": "warm_up",
+            "duration": 600,
+            "targetSpeed": 5,
+            "incline": 0,
+            "description": "Échauffement progressif."
+          },
+          {
+            "type": "tempo",
+            "duration": 2400,
+            "targetSpeed": 7.5,
+            "incline": 0,
+            "description": "Allure seuil confortable pour affiner la capacité métabolique."
+          },
+          {
+            "type": "cool_down",
+            "duration": 600,
+            "targetSpeed": 5,
+            "incline": 0,
+            "description": "Retour au calme."
+          }
+        ]
+      }
+    ]
+  }

@@ -1,0 +1,165 @@
+{
+  "name": "generateTrainingPlan",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "Nom du plan d'entraînement (ex: 'Plan 5K Beginner 4 Semaines')"
+      },
+      "description": {
+        "type": "string",
+        "description": "Description détaillée du plan"
+      },
+      "workoutsPerWeek": {
+        "type": "integer",
+        "description": "Nombre de séances par semaine"
+      },
+      "workouts": {
+        "type": "array",
+        "description": "Liste des entraînements planifiés",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Nom de la séance (SANS numéro de semaine, ex: 'Éveil Doux')"
+            },
+            "description": {
+              "type": "string",
+              "description": "Description de la séance"
+            },
+            "workoutType": {
+              "type": "string",
+              "enum": [
+                "easy_run",
+                "recovery_run",
+                "long_run",
+                "intervals",
+                "tempo",
+                "threshold",
+                "fartlek",
+                "hill_training",
+                "progression_run",
+                "time_trial"
+              ],
+              "description": "Type d'entraînement"
+            },
+            "estimatedDuration": {
+              "type": "integer",
+              "description": "Durée totale estimée en MINUTES (doit égaler la somme des segments)"
+            },
+            "estimatedDistance": {
+              "type": "integer",
+              "description": "Distance estimée en mètres"
+            },
+            "difficulty": {
+              "type": "integer",
+              "description": "Niveau de difficulté (1-10)"
+            },
+            "targetPace": {
+              "type": "number",
+              "description": "Allure cible en km/h (ex: 8.5)"
+            },
+            "weekNumber": {
+              "type": "integer",
+              "description": "Numéro de la semaine (1, 2, 3, 4...)"
+            },
+            "dayOfWeek": {
+              "type": "integer",
+              "description": "Jour de la semaine (1=Lundi, 2=Mardi, ..., 7=Dimanche)"
+            },
+            "segments": {
+              "type": "array",
+              "description": "Segments de l'entraînement",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Nom du segment"
+                  },
+                  "duration": {
+                    "type": "integer",
+                    "description": "Durée en SECONDES (ex: 600 = 10 minutes)"
+                  },
+                  "distance": {
+                    "type": "integer",
+                    "description": "Distance en mètres (optionnel)"
+                  },
+                  "targetSpeed": {
+                    "type": "number",
+                    "description": "Vitesse cible en km/h (ex: 7.0)"
+                  },
+                  "targetIncline": {
+                    "type": "number",
+                    "description": "Inclinaison en pourcentage (ex: 2.5)"
+                  },
+                  "intensity": {
+                    "type": "string",
+                    "enum": [
+                      "warm_up",
+                      "recovery",
+                      "easy",
+                      "tempo",
+                      "threshold",
+                      "vo2max",
+                      "neuromuscular",
+                      "cool_down"
+                    ],
+                    "description": "Zone d'intensité"
+                  },
+                  "rpe": {
+                    "type": "integer",
+                    "description": "Rating of Perceived Exertion (1-10)"
+                  },
+                  "instruction": {
+                    "type": "string",
+                    "description": "Instructions pour ce segment"
+                  },
+                  "recoveryAfter": {
+                    "type": "integer",
+                    "description": "Temps de récupération après le segment en secondes (optionnel)"
+                  }
+                },
+                "required": [
+                  "name",
+                  "duration",
+                  "distance",
+                  "targetSpeed",
+                  "targetIncline",
+                  "intensity",
+                  "rpe",
+                  "instruction",
+                  "recoveryAfter"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "name",
+            "description",
+            "workoutType",
+            "estimatedDuration",
+            "estimatedDistance",
+            "difficulty",
+            "targetPace",
+            "weekNumber",
+            "dayOfWeek",
+            "segments"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    "required": [
+      "name",
+      "description",
+      "workoutsPerWeek",
+      "workouts"
+    ],
+    "additionalProperties": false
+  }
+}
