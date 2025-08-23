@@ -128,3 +128,20 @@ export interface WeeklySchedule {
     actualSession?: WorkoutSession;
   }[];
 }
+
+export type RootStackParamList = {
+  Home: undefined;
+  Profile: undefined;
+  CreatePlan: undefined;
+  Plan: undefined;
+  PlanDetail: { planId: string };
+  WorkoutSession: { 
+    workoutId: string;
+    workout: PlannedWorkout;
+  };
+  WorkoutStats: {
+    sessionId: string;
+    userId: string;
+  };
+  WorkoutHistory: undefined;
+};

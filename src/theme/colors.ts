@@ -81,6 +81,8 @@ export const Colors = {
     accentSoft: ['#EF4444', '#DC2626'],        // Soft red gradient
     neutral: ['#6B7280', '#4B5563'],           // Gray gradient
     surface: ['#FFFFFF', '#F9FAFB'],           // Light gradient
+    success: ['#059669', '#047857'],           // Green gradient
+    warning: ['#D97706', '#B45309'],           // Orange gradient
   },
   
   // Semantic Colors for specific use cases

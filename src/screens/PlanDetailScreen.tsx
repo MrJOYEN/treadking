@@ -13,6 +13,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TrainingPlanService } from '../services/trainingPlanService';
+import { PlanService } from '../services/planService';
+import { CalendarService } from '../services/calendarService';
+import { WorkoutStatusService } from '../services/workoutStatusService';
+import { PlanProgressService } from '../services/planProgressService';
 import { TrainingPlan, PlannedWorkout, TrainingSegment } from '../types';
 import { Colors } from '../theme/colors';
 import { CommonStyles, Typography, Spacing, BorderRadius, Shadows } from '../theme/commonStyles';
@@ -31,6 +35,8 @@ const PlanDetailScreen: React.FC<PlanDetailScreenProps> = ({ navigation, route }
   const [plan, setPlan] = useState<TrainingPlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedWeek, setSelectedWeek] = useState(1);
+  const [workoutStatuses, setWorkoutStatuses] = useState<{ [key: string]: boolean }>({});
+  const [completedSessions, setCompletedSessions] = useState<{ [key: string]: any }>({});
   const planId = route?.params?.planId;
 
   useEffect(() => {
@@ -43,8 +49,48 @@ const PlanDetailScreen: React.FC<PlanDetailScreenProps> = ({ navigation, route }
     if (!planId) return;
     
     try {
-      const planData = await TrainingPlanService.getTrainingPlan(planId);
-      setPlan(planData);
+      // Essayer d'abord avec le nouveau PlanService
+      let planData = await PlanService.getPlan(planId);
+      
+      // Si ça ne marche pas, essayer avec l'ancien service
+      if (!planData) {
+        planData = await TrainingPlanService.getTrainingPlan(planId);
+      }
+      
+      if (planData) {
+        // Calculer les dates des workouts si pas déjà fait
+        const workoutsWithDates = CalendarService.calculateWorkoutDates(
+          planData.plannedWorkouts,
+          planData.startDate
+        );
+        
+        const enrichedPlan: TrainingPlan = {
+          ...planData,
+          plannedWorkouts: workoutsWithDates
+        };
+        
+        setPlan(enrichedPlan);
+        
+        // Charger les statuts des entraînements complétés
+        const completionStatuses = await PlanProgressService.getPlanCompletionStatus(planId, '425f9060-6391-4b5a-ad2f-3eb6cf0b817f'); // TODO: utiliser user.id du contexte
+        
+        const statusMap: { [key: string]: boolean } = {};
+        const sessionMap: { [key: string]: any } = {};
+        
+        completionStatuses.forEach(status => {
+          statusMap[status.plannedWorkoutId] = status.isCompleted;
+          if (status.completedSessionId) {
+            sessionMap[status.plannedWorkoutId] = {
+              sessionId: status.completedSessionId,
+              ...status.completionData
+            };
+          }
+        });
+        
+        setWorkoutStatuses(statusMap);
+        setCompletedSessions(sessionMap);
+        // setWorkoutStatuses(statuses);
+      }
     } catch (error) {
       console.error('Error loading plan:', error);
       Alert.alert('Erreur', 'Impossible de charger le plan');
@@ -123,8 +169,47 @@ const PlanDetailScreen: React.FC<PlanDetailScreenProps> = ({ navigation, route }
     return Colors.error;
   };
 
+  const isWorkoutToday = (workout: PlannedWorkout): boolean => {
+    if (!workout.scheduledDate) return false;
+    const today = new Date().toDateString();
+    const workoutDate = new Date(workout.scheduledDate).toDateString();
+    return today === workoutDate;
+  };
+  
+  const isWorkoutPast = (workout: PlannedWorkout): boolean => {
+    if (!workout.scheduledDate) return false;
+    const today = new Date();
+    const workoutDate = new Date(workout.scheduledDate);
+    return workoutDate < today;
+  };
+  
+  const handleStartWorkout = (workout: PlannedWorkout, isMissed: boolean = false) => {
+    const title = isMissed ? 'Rattraper l\'entraînement' : 'Démarrer l\'entraînement';
+    const message = isMissed 
+      ? `Cet entraînement était prévu le ${workout.scheduledDate ? CalendarService.formatWorkoutDate(workout.scheduledDate) : 'date inconnue'}.\n\nVoulez-vous le rattraper maintenant ?`
+      : `Commencer "${workout.name}" maintenant ?`;
+    
+    Alert.alert(
+      title,
+      message,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: isMissed ? 'Rattraper' : 'Démarrer',
+          onPress: () => {
+            navigation?.navigate('WorkoutSession', { workoutId: workout.id });
+          }
+        }
+      ]
+    );
+  };
+
   const renderWorkoutCard = (workout: PlannedWorkout, index: number) => (
-    <View key={workout.id} style={styles.workoutCard}>
+    <View key={workout.id} style={[
+      styles.workoutCard,
+      workoutStatuses[workout.id] && styles.completedWorkoutCard,
+      isWorkoutToday(workout) && !workoutStatuses[workout.id] && styles.todayWorkoutCard
+    ]}>
       <View style={styles.workoutHeader}>
         <View style={styles.workoutInfo}>
           <View style={styles.workoutTypeContainer}>
@@ -135,15 +220,45 @@ const PlanDetailScreen: React.FC<PlanDetailScreenProps> = ({ navigation, route }
             />
             <Text style={styles.workoutName}>{workout.name}</Text>
           </View>
+          
+          {/* Date de l'entraînement */}
+          {workout.scheduledDate && (
+            <View style={styles.workoutDateContainer}>
+              <Ionicons name="calendar-outline" size={14} color={Colors.textSecondary} />
+              <Text style={[
+                styles.workoutDate,
+                isWorkoutToday(workout) && styles.todayDate
+              ]}>
+                {isWorkoutToday(workout) 
+                  ? 'Aujourd\'hui' 
+                  : CalendarService.formatFullWorkoutDate(workout.scheduledDate)
+                }
+              </Text>
+            </View>
+          )}
+          
           <Text style={styles.workoutDescription} numberOfLines={2}>
             {workout.description}
           </Text>
         </View>
         
-        <View style={[styles.difficultyBadge, { backgroundColor: getDifficultyColor(workout.difficulty) + '20' }]}>
-          <Text style={[styles.difficultyText, { color: getDifficultyColor(workout.difficulty) }]}>
-            {workout.difficulty}/10
-          </Text>
+        <View style={styles.workoutBadges}>
+          {workoutStatuses[workout.id] ? (
+            <View style={styles.completedBadge}>
+              <Ionicons name="checkmark-circle" size={16} color="white" />
+              <Text style={styles.completedText}>Terminé</Text>
+            </View>
+          ) : isWorkoutPast(workout) && !workoutStatuses[workout.id] ? (
+            <View style={styles.missedBadge}>
+              <Ionicons name="time-outline" size={16} color="white" />
+              <Text style={styles.missedText}>Manqué</Text>
+            </View>
+          ) : null}
+          <View style={[styles.difficultyBadge, { backgroundColor: getDifficultyColor(workout.difficulty) + '20' }]}>
+            <Text style={[styles.difficultyText, { color: getDifficultyColor(workout.difficulty) }]}>
+              {workout.difficulty}/10
+            </Text>
+          </View>
         </View>
       </View>
 
@@ -164,19 +279,69 @@ const PlanDetailScreen: React.FC<PlanDetailScreenProps> = ({ navigation, route }
         )}
       </View>
 
-      {/* Segments preview */}
-      <TouchableOpacity 
-        style={styles.segmentsPreview}
-        onPress={() => {
-          // TODO: Naviguer vers détail du workout
-          Alert.alert('Détail du workout', `Segments de "${workout.name}":\n\n${workout.segments.map(s => `• ${s.name}: ${formatDuration(s.duration)}`).join('\n')}`);
-        }}
-      >
-        <Text style={styles.segmentsText}>
-          {workout.segments.length} segments • Voir détails
-        </Text>
-        <Ionicons name="chevron-forward" size={16} color={Colors.accent} />
-      </TouchableOpacity>
+      {/* Actions */}
+      <View style={styles.workoutActions}>
+        {/* Segments preview */}
+        <TouchableOpacity 
+          style={styles.segmentsPreview}
+          onPress={() => {
+            Alert.alert('Détail du workout', `Segments de "${workout.name}":\n\n${workout.segments.map(s => `• ${s.name}: ${formatDuration(s.duration)}`).join('\n')}`);
+          }}
+        >
+          <Text style={styles.segmentsText}>
+            {workout.segments.length} segments • Voir détails
+          </Text>
+          <Ionicons name="chevron-forward" size={16} color={Colors.accent} />
+        </TouchableOpacity>
+        
+        {/* Bouton d'action */}
+        {isWorkoutToday(workout) && !workoutStatuses[workout.id] ? (
+          <TouchableOpacity 
+            style={styles.startWorkoutButton}
+            onPress={() => handleStartWorkout(workout)}
+          >
+            <Ionicons name="play" size={16} color="white" />
+            <Text style={styles.startWorkoutText}>Démarrer</Text>
+          </TouchableOpacity>
+        ) : workoutStatuses[workout.id] ? (
+          <View style={styles.completedActionsContainer}>
+            <TouchableOpacity 
+              style={styles.restartWorkoutButton}
+              onPress={() => handleStartWorkout(workout, true)}
+            >
+              <Ionicons name="refresh" size={16} color={Colors.warning} />
+              <Text style={styles.restartWorkoutText}>Recommencer</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.statsWorkoutButton}
+              onPress={() => {
+                if (completedSessions[workout.id]) {
+                  navigation?.navigate('WorkoutStats', { 
+                    sessionId: completedSessions[workout.id].sessionId, 
+                    userId: '425f9060-6391-4b5a-ad2f-3eb6cf0b817f' 
+                  });
+                }
+              }}
+            >
+              <Ionicons name="stats-chart" size={16} color={Colors.accent} />
+              <Text style={styles.statsWorkoutText}>Voir stats</Text>
+            </TouchableOpacity>
+          </View>
+        ) : isWorkoutPast(workout) && !workoutStatuses[workout.id] ? (
+          <TouchableOpacity 
+            style={styles.missedWorkoutButton}
+            onPress={() => handleStartWorkout(workout, true)}
+          >
+            <Ionicons name="refresh" size={16} color={Colors.error} />
+            <Text style={styles.missedWorkoutText}>Rattraper</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.upcomingWorkoutButton}>
+            <Ionicons name="time-outline" size={16} color={Colors.textSecondary} />
+            <Text style={styles.upcomingWorkoutText}>Programmé</Text>
+          </View>
+        )}
+      </View>
     </View>
   );
 
@@ -531,13 +696,16 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginLeft: Spacing.xs,
   },
+  workoutActions: {
+    paddingTop: Spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: Colors.borderLight,
+  },
   segmentsPreview: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: Spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: Colors.borderLight,
+    marginBottom: Spacing.md,
   },
   segmentsText: {
     ...Typography.bodySmall,
@@ -580,6 +748,163 @@ const styles = StyleSheet.create({
   },
   bottomSpacing: {
     // height sera défini dynamiquement avec insets.bottom + 80
+  },
+  // Nouveaux styles
+  completedWorkoutCard: {
+    borderColor: Colors.success,
+    borderWidth: 2,
+  },
+  todayWorkoutCard: {
+    borderColor: Colors.error,
+    borderWidth: 2,
+  },
+  workoutDateContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.xs,
+  },
+  workoutDate: {
+    ...Typography.captionSmall,
+    color: Colors.textSecondary,
+    marginLeft: Spacing.xs,
+  },
+  todayDate: {
+    color: Colors.accent,
+    fontWeight: '600',
+  },
+  workoutBadges: {
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    gap: Spacing.xs,
+  },
+  completedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.success,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.md,
+  },
+  completedText: {
+    ...Typography.captionSmall,
+    color: 'white',
+    fontWeight: '600',
+    marginLeft: Spacing.xs,
+  },
+  startWorkoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.accent,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
+    alignSelf: 'flex-end',
+  },
+  startWorkoutText: {
+    ...Typography.labelSmall,
+    color: Colors.textOnAccent,
+    marginLeft: Spacing.xs,
+    fontWeight: '600',
+  },
+  completedWorkoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.successLight,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
+    alignSelf: 'flex-end',
+  },
+  completedWorkoutText: {
+    ...Typography.labelSmall,
+    color: Colors.success,
+    marginLeft: Spacing.xs,
+    fontWeight: '600',
+  },
+  missedWorkoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.backgroundSecondary,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
+    alignSelf: 'flex-end',
+    borderWidth: 2,
+    borderColor: Colors.error,
+  },
+  missedWorkoutText: {
+    ...Typography.labelSmall,
+    color: Colors.error,
+    marginLeft: Spacing.xs,
+    fontWeight: '600',
+  },
+  upcomingWorkoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.backgroundSecondary,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
+    alignSelf: 'flex-end',
+  },
+  upcomingWorkoutText: {
+    ...Typography.labelSmall,
+    color: Colors.textSecondary,
+    marginLeft: Spacing.xs,
+    fontWeight: '600',
+  },
+  statsWorkoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.backgroundSecondary,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
+    alignSelf: 'flex-end',
+    borderWidth: 2,
+    borderColor: Colors.accent,
+  },
+  statsWorkoutText: {
+    ...Typography.labelSmall,
+    color: Colors.accent,
+    marginLeft: Spacing.xs,
+    fontWeight: '600',
+  },
+  completedActionsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-end',
+    gap: Spacing.md,
+  },
+  restartWorkoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.backgroundSecondary,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: 2,
+    borderColor: Colors.warning,
+  },
+  restartWorkoutText: {
+    ...Typography.labelSmall,
+    color: Colors.warning,
+    marginLeft: Spacing.xs,
+    fontWeight: '600',
+  },
+  missedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.warning,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.md,
+  },
+  missedText: {
+    ...Typography.captionSmall,
+    color: 'white',
+    fontWeight: '600',
+    marginLeft: Spacing.xs,
   },
 });
 

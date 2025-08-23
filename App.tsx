@@ -13,6 +13,9 @@ import EditProfileScreen from './src/screens/EditProfileScreen';
 import PlanScreen from './src/screens/PlanScreen';
 import CreatePlanScreen from './src/screens/CreatePlanScreen';
 import PlanDetailScreen from './src/screens/PlanDetailScreen';
+import WorkoutSessionScreen from './src/screens/WorkoutSessionScreen';
+import { WorkoutStatsScreen } from './src/screens/WorkoutStatsScreen';
+import { WorkoutHistoryScreen } from './src/screens/WorkoutHistoryScreen';
 import { ProfileService } from './src/services/profileService';
 
 const Stack = createNativeStackNavigator();
@@ -93,6 +96,21 @@ const AppNavigator = () => {
               <Stack.Screen 
                 name="PlanDetail" 
                 component={PlanDetailScreen} 
+              />
+              <Stack.Screen 
+                name="WorkoutSession" 
+                component={WorkoutSessionScreen} 
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen 
+                name="WorkoutStats" 
+                component={WorkoutStatsScreen} 
+                options={{ headerShown: false }}
+              />
+              <Stack.Screen 
+                name="WorkoutHistory" 
+                component={WorkoutHistoryScreen} 
+                options={{ headerShown: false }}
               />
             </>
           ) : (
